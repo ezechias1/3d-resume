@@ -8,6 +8,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+    <!-- Loading Screen -->
+    <div id="loader">
+        <div class="loader-inner">
+            <div class="loader-ring"></div>
+            <div class="loader-text">EM</div>
+        </div>
+        <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+    </div>
+
+    <!-- Custom Cursor -->
+    <div id="cursor" class="cursor"></div>
+    <div id="cursorTrail" class="cursor-trail"></div>
+
     <div id="three-hero"></div>
     <div id="three-skills"></div>
 
@@ -31,7 +44,7 @@
                 <span class="line">Ezechias</span>
                 <span class="line accent">Mulamba</span>
             </h1>
-            <p class="hero-tagline">Building modern web apps with vanilla JS, Supabase & Next.js</p>
+            <p class="hero-tagline" id="typewriter"></p>
             <div class="hero-location">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 South Africa
@@ -59,20 +72,20 @@
                 </div>
                 <div class="about-stats">
                     <div class="stat-card">
-                        <div class="stat-number">16+</div>
+                        <div class="stat-number" data-count="16" data-suffix="+">0</div>
                         <div class="stat-label">Projects</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">5+</div>
+                        <div class="stat-number" data-count="10" data-suffix="+">0</div>
                         <div class="stat-label">Technologies</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">SA</div>
-                        <div class="stat-label">Based</div>
+                        <div class="stat-number" data-count="3" data-suffix="+">0</div>
+                        <div class="stat-label">Years Coding</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">DDM</div>
-                        <div class="stat-label">Agency</div>
+                        <div class="stat-number" data-count="5" data-suffix="">0</div>
+                        <div class="stat-label">AI Tools</div>
                     </div>
                 </div>
             </div>

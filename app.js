@@ -1,12 +1,146 @@
 (function() {
     var mouse = { x: 0, y: 0, nx: 0, ny: 0 };
 
+    // ==========================================
+    // LOADING SCREEN
+    // ==========================================
+    var loader = document.getElementById('loader');
+    var loaderFill = document.getElementById('loaderFill');
+    var loadProgress = 0;
+
+    function advanceLoader(target) {
+        var interval = setInterval(function() {
+            loadProgress += Math.random() * 15 + 5;
+            if (loadProgress >= target) {
+                loadProgress = target;
+                clearInterval(interval);
+            }
+            loaderFill.style.width = Math.min(loadProgress, 100) + '%';
+        }, 80);
+    }
+    advanceLoader(70);
+
+    window.addEventListener('load', function() {
+        advanceLoader(100);
+        setTimeout(function() {
+            loader.classList.add('done');
+        }, 800);
+    });
+
+    // ==========================================
+    // CUSTOM CURSOR
+    // ==========================================
+    var cursor = document.getElementById('cursor');
+    var trail = document.getElementById('cursorTrail');
+    var cursorX = 0, cursorY = 0, trailX = 0, trailY = 0;
+
     document.addEventListener('mousemove', function(e) {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
         mouse.nx = (e.clientX / window.innerWidth) * 2 - 1;
         mouse.ny = -(e.clientY / window.innerHeight) * 2 + 1;
+        cursorX = e.clientX;
+        cursorY = e.clientY;
+        cursor.style.left = cursorX + 'px';
+        cursor.style.top = cursorY + 'px';
     });
+
+    // Smooth trail follow
+    function updateTrail() {
+        trailX += (cursorX - trailX) * 0.15;
+        trailY += (cursorY - trailY) * 0.15;
+        trail.style.left = trailX + 'px';
+        trail.style.top = trailY + 'px';
+        requestAnimationFrame(updateTrail);
+    }
+    updateTrail();
+
+    // Hover effect on interactive elements
+    document.addEventListener('mouseover', function(e) {
+        var target = e.target.closest('a, button, .project-card, .stat-card, .contact-card, .tag, .nav-link');
+        if (target) {
+            cursor.classList.add('hover');
+            trail.classList.add('hover');
+        }
+    });
+    document.addEventListener('mouseout', function(e) {
+        var target = e.target.closest('a, button, .project-card, .stat-card, .contact-card, .tag, .nav-link');
+        if (target) {
+            cursor.classList.remove('hover');
+            trail.classList.remove('hover');
+        }
+    });
+
+    // ==========================================
+    // TYPEWRITER EFFECT
+    // ==========================================
+    var typeEl = document.getElementById('typewriter');
+    var phrases = [
+        'Building modern web apps with vanilla JS, Supabase & Next.js',
+        'Shipping fast with AI tools like Claude Code & Antigravity',
+        'Crafting pixel-perfect, mobile-first experiences'
+    ];
+    var phraseIdx = 0, charIdx = 0, deleting = false, typeDelay = 0;
+    var cursorSpan = document.createElement('span');
+    cursorSpan.className = 'typewriter-cursor';
+    typeEl.appendChild(cursorSpan);
+
+    function typewrite() {
+        var current = phrases[phraseIdx];
+        if (!deleting) {
+            charIdx++;
+            if (charIdx > current.length) {
+                typeDelay = 2000;
+                deleting = true;
+            } else {
+                typeDelay = 40 + Math.random() * 40;
+            }
+        } else {
+            charIdx--;
+            if (charIdx === 0) {
+                deleting = false;
+                phraseIdx = (phraseIdx + 1) % phrases.length;
+                typeDelay = 500;
+            } else {
+                typeDelay = 20;
+            }
+        }
+        typeEl.textContent = current.substring(0, charIdx);
+        typeEl.appendChild(cursorSpan);
+        setTimeout(typewrite, typeDelay);
+    }
+    // Start typewriter after loader
+    setTimeout(typewrite, 1500);
+
+    // ==========================================
+    // ANIMATED COUNTERS
+    // ==========================================
+    function animateCounters() {
+        document.querySelectorAll('.stat-number[data-count]').forEach(function(el) {
+            if (el.dataset.counted) return;
+            var rect = el.getBoundingClientRect();
+            if (rect.top > window.innerHeight || rect.bottom < 0) return;
+            el.dataset.counted = 'true';
+
+            var target = parseInt(el.dataset.count);
+            var suffix = el.dataset.suffix || '';
+            var duration = 1500;
+            var start = performance.now();
+
+            function tick(now) {
+                var elapsed = now - start;
+                var progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                var eased = 1 - Math.pow(1 - progress, 3);
+                var current = Math.round(eased * target);
+                el.textContent = current + suffix;
+                if (progress < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        });
+    }
+    window.addEventListener('scroll', animateCounters);
+    setTimeout(animateCounters, 2000);
 
     // ==========================================
     // THREE.JS — HERO SCENE
