@@ -1,94 +1,262 @@
 (function() {
-    // ==========================================
-    // 3D PARTICLE BACKGROUND
-    // ==========================================
-    var canvas = document.getElementById('bgCanvas');
-    var ctx = canvas.getContext('2d');
-    var particles = [];
-    var mouse = { x: 0, y: 0 };
-    var PARTICLE_COUNT = 80;
-    var CONNECTION_DIST = 120;
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    function Particle() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.z = Math.random() * 2 + 0.5;
-        this.vx = (Math.random() - 0.5) * 0.5;
-        this.vy = (Math.random() - 0.5) * 0.5;
-        this.size = Math.random() * 2 + 0.5;
-    }
-
-    Particle.prototype.update = function() {
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Parallax with mouse
-        var dx = mouse.x - canvas.width / 2;
-        var dy = mouse.y - canvas.height / 2;
-        this.x += dx * 0.0003 * this.z;
-        this.y += dy * 0.0003 * this.z;
-
-        if (this.x < 0) this.x = canvas.width;
-        if (this.x > canvas.width) this.x = 0;
-        if (this.y < 0) this.y = canvas.height;
-        if (this.y > canvas.height) this.y = 0;
-    };
-
-    Particle.prototype.draw = function() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size * this.z, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(108, 99, 255,' + (0.3 * this.z) + ')';
-        ctx.fill();
-    };
-
-    for (var i = 0; i < PARTICLE_COUNT; i++) {
-        particles.push(new Particle());
-    }
-
-    function drawConnections() {
-        for (var i = 0; i < particles.length; i++) {
-            for (var j = i + 1; j < particles.length; j++) {
-                var dx = particles[i].x - particles[j].x;
-                var dy = particles[i].y - particles[j].y;
-                var dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < CONNECTION_DIST) {
-                    var opacity = (1 - dist / CONNECTION_DIST) * 0.15;
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = 'rgba(108, 99, 255,' + opacity + ')';
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                }
-            }
-        }
-    }
-
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        for (var i = 0; i < particles.length; i++) {
-            particles[i].update();
-            particles[i].draw();
-        }
-        drawConnections();
-        requestAnimationFrame(animate);
-    }
-    animate();
+    var mouse = { x: 0, y: 0, nx: 0, ny: 0 };
 
     document.addEventListener('mousemove', function(e) {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
+        mouse.nx = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.ny = -(e.clientY / window.innerHeight) * 2 + 1;
     });
 
     // ==========================================
-    // 3D TILT ON HERO
+    // THREE.JS — HERO SCENE
+    // Floating wireframe icosahedron + orbiting particles
+    // ==========================================
+    var heroContainer = document.getElementById('three-hero');
+    var heroScene = new THREE.Scene();
+    var heroCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    heroCamera.position.z = 5;
+
+    var heroRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    heroRenderer.setSize(window.innerWidth, window.innerHeight);
+    heroRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    heroContainer.appendChild(heroRenderer.domElement);
+
+    // Main icosahedron wireframe
+    var icoGeo = new THREE.IcosahedronGeometry(1.8, 1);
+    var icoMat = new THREE.MeshBasicMaterial({
+        color: 0x6c63ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.25
+    });
+    var icosahedron = new THREE.Mesh(icoGeo, icoMat);
+    heroScene.add(icosahedron);
+
+    // Inner icosahedron (smaller, different rotation)
+    var innerGeo = new THREE.IcosahedronGeometry(1.0, 0);
+    var innerMat = new THREE.MeshBasicMaterial({
+        color: 0x00d4aa,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.15
+    });
+    var innerIco = new THREE.Mesh(innerGeo, innerMat);
+    heroScene.add(innerIco);
+
+    // Orbiting particles
+    var particleCount = 200;
+    var particleGeo = new THREE.BufferGeometry();
+    var positions = new Float32Array(particleCount * 3);
+    var sizes = new Float32Array(particleCount);
+
+    for (var i = 0; i < particleCount; i++) {
+        var theta = Math.random() * Math.PI * 2;
+        var phi = Math.acos(2 * Math.random() - 1);
+        var r = 2.5 + Math.random() * 3;
+        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = r * Math.cos(phi);
+        sizes[i] = Math.random() * 3 + 1;
+    }
+
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    var particleMat = new THREE.PointsMaterial({
+        color: 0x6c63ff,
+        size: 0.03,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+    });
+    var particles = new THREE.Points(particleGeo, particleMat);
+    heroScene.add(particles);
+
+    // Connecting lines between nearby particles
+    var lineGeo = new THREE.BufferGeometry();
+    var linePositions = [];
+    var posArr = particleGeo.attributes.position.array;
+    for (var i = 0; i < particleCount; i++) {
+        for (var j = i + 1; j < particleCount; j++) {
+            var dx = posArr[i*3] - posArr[j*3];
+            var dy = posArr[i*3+1] - posArr[j*3+1];
+            var dz = posArr[i*3+2] - posArr[j*3+2];
+            var dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < 1.2) {
+                linePositions.push(posArr[i*3], posArr[i*3+1], posArr[i*3+2]);
+                linePositions.push(posArr[j*3], posArr[j*3+1], posArr[j*3+2]);
+            }
+        }
+    }
+    lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+    var lineMat = new THREE.LineBasicMaterial({
+        color: 0x6c63ff,
+        transparent: true,
+        opacity: 0.08
+    });
+    var lines = new THREE.LineSegments(lineGeo, lineMat);
+    heroScene.add(lines);
+
+    // Torus ring
+    var torusGeo = new THREE.TorusGeometry(2.8, 0.01, 8, 100);
+    var torusMat = new THREE.MeshBasicMaterial({
+        color: 0x00d4aa,
+        transparent: true,
+        opacity: 0.2
+    });
+    var torus = new THREE.Mesh(torusGeo, torusMat);
+    torus.rotation.x = Math.PI / 3;
+    heroScene.add(torus);
+
+    // ==========================================
+    // THREE.JS — SKILLS SCENE
+    // Floating 3D tech cubes
+    // ==========================================
+    var skillsContainer = document.getElementById('three-skills');
+    var skillsScene = new THREE.Scene();
+    var skillsCamera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    skillsCamera.position.z = 8;
+
+    var skillsRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    skillsRenderer.setSize(window.innerWidth, window.innerHeight);
+    skillsRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    skillsContainer.appendChild(skillsRenderer.domElement);
+
+    var skillCubes = [];
+    var skillNames = ['JS', 'TS', 'React', 'Next', 'PHP', 'Py', 'Node', 'SQL', 'CSS', 'Git'];
+    var skillColors = [0xf7df1e, 0x3178c6, 0x61dafb, 0x000000, 0x777bb3, 0x3776ab, 0x68a063, 0x336791, 0x264de4, 0xf05032];
+
+    for (var i = 0; i < skillNames.length; i++) {
+        var cubeGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+        var edges = new THREE.EdgesGeometry(cubeGeo);
+        var edgeMat = new THREE.LineBasicMaterial({
+            color: skillColors[i],
+            transparent: true,
+            opacity: 0.6
+        });
+        var cubeEdges = new THREE.LineSegments(edges, edgeMat);
+
+        // Create filled face with low opacity
+        var faceMat = new THREE.MeshBasicMaterial({
+            color: skillColors[i],
+            transparent: true,
+            opacity: 0.08
+        });
+        var cubeFace = new THREE.Mesh(cubeGeo, faceMat);
+
+        var group = new THREE.Group();
+        group.add(cubeEdges);
+        group.add(cubeFace);
+
+        // Spread in a sphere
+        var angle = (i / skillNames.length) * Math.PI * 2;
+        var radius = 3 + Math.random() * 1.5;
+        var yOffset = (Math.random() - 0.5) * 3;
+        group.position.set(
+            Math.cos(angle) * radius,
+            yOffset,
+            Math.sin(angle) * radius
+        );
+        group.userData = {
+            baseX: group.position.x,
+            baseY: group.position.y,
+            baseZ: group.position.z,
+            rotSpeed: 0.005 + Math.random() * 0.01,
+            floatSpeed: 0.5 + Math.random() * 0.5,
+            floatAmp: 0.3 + Math.random() * 0.3,
+            orbitSpeed: 0.0003 + Math.random() * 0.0005,
+            orbitAngle: angle
+        };
+
+        skillsScene.add(group);
+        skillCubes.push(group);
+    }
+
+    // Add a central sphere for skills
+    var centerGeo = new THREE.SphereGeometry(0.4, 16, 16);
+    var centerMat = new THREE.MeshBasicMaterial({
+        color: 0x6c63ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.3
+    });
+    var centerSphere = new THREE.Mesh(centerGeo, centerMat);
+    skillsScene.add(centerSphere);
+
+    // ==========================================
+    // ANIMATION LOOP
+    // ==========================================
+    var clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        var t = clock.getElapsedTime();
+
+        // Hero scene
+        icosahedron.rotation.x = t * 0.15 + mouse.ny * 0.3;
+        icosahedron.rotation.y = t * 0.2 + mouse.nx * 0.3;
+
+        innerIco.rotation.x = -t * 0.2 + mouse.ny * 0.2;
+        innerIco.rotation.y = -t * 0.25 + mouse.nx * 0.2;
+
+        particles.rotation.y = t * 0.05;
+        particles.rotation.x = t * 0.02;
+        lines.rotation.y = t * 0.05;
+        lines.rotation.x = t * 0.02;
+
+        torus.rotation.z = t * 0.1;
+
+        // Camera follows mouse slightly
+        heroCamera.position.x += (mouse.nx * 0.5 - heroCamera.position.x) * 0.02;
+        heroCamera.position.y += (mouse.ny * 0.3 - heroCamera.position.y) * 0.02;
+        heroCamera.lookAt(0, 0, 0);
+
+        heroRenderer.render(heroScene, heroCamera);
+
+        // Skills scene
+        centerSphere.rotation.x = t * 0.3;
+        centerSphere.rotation.y = t * 0.4;
+
+        for (var i = 0; i < skillCubes.length; i++) {
+            var cube = skillCubes[i];
+            var d = cube.userData;
+
+            // Orbit around center
+            d.orbitAngle += d.orbitSpeed;
+            var radius = Math.sqrt(d.baseX * d.baseX + d.baseZ * d.baseZ);
+            cube.position.x = Math.cos(d.orbitAngle) * radius;
+            cube.position.z = Math.sin(d.orbitAngle) * radius;
+            cube.position.y = d.baseY + Math.sin(t * d.floatSpeed) * d.floatAmp;
+
+            // Self rotation
+            cube.rotation.x += d.rotSpeed;
+            cube.rotation.y += d.rotSpeed * 0.7;
+        }
+
+        skillsCamera.position.x += (mouse.nx * 0.8 - skillsCamera.position.x) * 0.02;
+        skillsCamera.position.y += (mouse.ny * 0.5 - skillsCamera.position.y) * 0.02;
+        skillsCamera.lookAt(0, 0, 0);
+
+        skillsRenderer.render(skillsScene, skillsCamera);
+    }
+    animate();
+
+    // ==========================================
+    // RESIZE
+    // ==========================================
+    window.addEventListener('resize', function() {
+        heroCamera.aspect = window.innerWidth / window.innerHeight;
+        heroCamera.updateProjectionMatrix();
+        heroRenderer.setSize(window.innerWidth, window.innerHeight);
+
+        skillsCamera.aspect = window.innerWidth / window.innerHeight;
+        skillsCamera.updateProjectionMatrix();
+        skillsRenderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ==========================================
+    // 3D TILT ON HERO TEXT
     // ==========================================
     var heroContent = document.querySelector('.hero-content');
     var hero = document.getElementById('hero');
@@ -97,7 +265,7 @@
         var rect = hero.getBoundingClientRect();
         var x = (e.clientX - rect.left) / rect.width - 0.5;
         var y = (e.clientY - rect.top) / rect.height - 0.5;
-        heroContent.style.transform = 'rotateY(' + (x * 8) + 'deg) rotateX(' + (-y * 8) + 'deg)';
+        heroContent.style.transform = 'rotateY(' + (x * 10) + 'deg) rotateX(' + (-y * 10) + 'deg) translateZ(20px)';
     });
 
     hero.addEventListener('mouseleave', function() {
@@ -111,39 +279,30 @@
         entries.forEach(function(entry) {
             if (entry.isIntersecting) {
                 entry.target.classList.add('visible');
-
-                // Animate skill bars
                 if (entry.target.classList.contains('skill-item')) {
                     var fill = entry.target.querySelector('.skill-fill');
                     if (fill) {
-                        setTimeout(function() {
-                            fill.classList.add('animate');
-                        }, 100);
+                        setTimeout(function() { fill.classList.add('animate'); }, 100);
                     }
                 }
             }
         });
     }, { threshold: 0.1 });
 
-    // Observe all animatable elements
     document.querySelectorAll('.section-title, .project-card, .skill-item, .stat-card, .about-text, .contact-inner').forEach(function(el) {
         observer.observe(el);
     });
 
-    // Stagger project cards
-    var projectCards = document.querySelectorAll('.project-card');
-    projectCards.forEach(function(card, i) {
+    // Stagger animations
+    document.querySelectorAll('.project-card').forEach(function(card, i) {
         card.style.transitionDelay = (i * 0.08) + 's';
     });
-
-    // Stagger skill items
-    var skillItems = document.querySelectorAll('.skill-item');
-    skillItems.forEach(function(item, i) {
+    document.querySelectorAll('.skill-item').forEach(function(item, i) {
         item.style.transitionDelay = (i * 0.1) + 's';
     });
 
     // ==========================================
-    // NAV ACTIVE STATE ON SCROLL
+    // NAV ACTIVE STATE
     // ==========================================
     var sections = document.querySelectorAll('.section');
     var navLinks = document.querySelectorAll('.nav-link');
@@ -152,12 +311,18 @@
         var scrollPos = window.scrollY + 200;
         sections.forEach(function(section) {
             if (scrollPos >= section.offsetTop && scrollPos < section.offsetTop + section.offsetHeight) {
-                var id = section.id;
                 navLinks.forEach(function(link) {
-                    link.classList.toggle('active', link.dataset.section === id);
+                    link.classList.toggle('active', link.dataset.section === section.id);
                 });
             }
         });
+
+        // Toggle 3D scenes based on scroll position
+        var skillsSection = document.getElementById('skills');
+        var skillsRect = skillsSection.getBoundingClientRect();
+        var inSkills = skillsRect.top < window.innerHeight * 0.5 && skillsRect.bottom > window.innerHeight * 0.3;
+        skillsContainer.classList.toggle('active', inSkills);
+        heroContainer.style.opacity = inSkills ? '0.2' : '1';
     });
 
     // ==========================================
@@ -168,9 +333,8 @@
             var rect = card.getBoundingClientRect();
             var x = (e.clientX - rect.left) / rect.width - 0.5;
             var y = (e.clientY - rect.top) / rect.height - 0.5;
-            card.style.transform = 'translateY(-6px) rotateY(' + (x * 10) + 'deg) rotateX(' + (-y * 10) + 'deg)';
+            card.style.transform = 'perspective(800px) translateY(-6px) rotateY(' + (x * 15) + 'deg) rotateX(' + (-y * 15) + 'deg)';
         });
-
         card.addEventListener('mouseleave', function() {
             card.style.transform = '';
         });

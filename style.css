@@ -21,7 +21,7 @@ body {
     line-height: 1.6;
 }
 
-#bgCanvas {
+#three-hero {
     position: fixed;
     top: 0;
     left: 0;
@@ -29,6 +29,23 @@ body {
     height: 100%;
     z-index: 0;
     pointer-events: none;
+    transition: opacity 0.8s;
+}
+
+#three-skills {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s;
+}
+
+#three-skills.active {
+    opacity: 1;
 }
 
 /* === NAV === */
@@ -123,12 +140,14 @@ nav {
 .hero {
     flex-direction: column;
     text-align: center;
-    perspective: 1000px;
+    perspective: 800px;
+    transform-style: preserve-3d;
 }
 
 .hero-content {
     transform: rotateX(2deg);
     transition: transform 0.3s;
+    transform-style: preserve-3d;
 }
 
 .hero-badge {
