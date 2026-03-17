@@ -2,29 +2,37 @@
     var mouse = { x: 0, y: 0, nx: 0, ny: 0 };
 
     // ==========================================
-    // LOADING SCREEN
+    // LOADING SCREEN (smooth eased fill)
     // ==========================================
     var loader = document.getElementById('loader');
     var loaderFill = document.getElementById('loaderFill');
-    var loadProgress = 0;
+    var loadTarget = 0;
+    var loadCurrent = 0;
+    var loadDone = false;
 
-    function advanceLoader(target) {
-        var interval = setInterval(function() {
-            loadProgress += Math.random() * 15 + 5;
-            if (loadProgress >= target) {
-                loadProgress = target;
-                clearInterval(interval);
-            }
-            loaderFill.style.width = Math.min(loadProgress, 100) + '%';
-        }, 80);
+    function tickLoader() {
+        if (loadDone) return;
+        loadCurrent += (loadTarget - loadCurrent) * 0.08;
+        if (loadCurrent > 99.5 && loadTarget >= 100) {
+            loadCurrent = 100;
+            loadDone = true;
+            loaderFill.style.width = '100%';
+            setTimeout(function() {
+                loader.classList.add('done');
+                document.body.classList.add('loaded');
+            }, 400);
+            return;
+        }
+        loaderFill.style.width = loadCurrent.toFixed(1) + '%';
+        requestAnimationFrame(tickLoader);
     }
-    advanceLoader(70);
+
+    // Start at 0, ease toward 70 immediately
+    loadTarget = 70;
+    requestAnimationFrame(tickLoader);
 
     window.addEventListener('load', function() {
-        advanceLoader(100);
-        setTimeout(function() {
-            loader.classList.add('done');
-        }, 800);
+        loadTarget = 100;
     });
 
     // ==========================================
@@ -415,8 +423,22 @@
                 entry.target.classList.add('visible');
                 if (entry.target.classList.contains('skill-item')) {
                     var fill = entry.target.querySelector('.skill-fill');
+                    var pctEl = entry.target.querySelector('.skill-pct');
                     if (fill) {
                         setTimeout(function() { fill.classList.add('animate'); }, 100);
+                    }
+                    if (pctEl && !pctEl.dataset.animated) {
+                        pctEl.dataset.animated = 'true';
+                        var target = parseInt(pctEl.dataset.pct);
+                        var start = performance.now();
+                        var duration = 1200;
+                        (function countPct(now) {
+                            var elapsed = now - start;
+                            var progress = Math.min(elapsed / duration, 1);
+                            var eased = 1 - Math.pow(1 - progress, 3);
+                            pctEl.textContent = Math.round(eased * target) + '%';
+                            if (progress < 1) requestAnimationFrame(countPct);
+                        })(start);
                     }
                 }
             }

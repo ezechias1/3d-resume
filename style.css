@@ -42,6 +42,23 @@ body {
     pointer-events: none;
 }
 
+/* Content hidden until loaded */
+nav, .section, footer, #three-hero, #three-skills {
+    opacity: 0;
+    transition: opacity 0.8s ease 0.2s;
+}
+
+body.loaded nav,
+body.loaded .section,
+body.loaded footer,
+body.loaded #three-hero,
+body.loaded #three-skills {
+    opacity: 1;
+}
+
+body.loaded #three-skills { opacity: 0; }
+body.loaded #three-skills.active { opacity: 1; }
+
 .loader-inner {
     position: relative;
     width: 80px;
@@ -82,7 +99,7 @@ body {
     height: 100%;
     width: 0;
     background: linear-gradient(90deg, var(--accent), var(--accent2));
-    transition: width 0.3s;
+    border-radius: 2px;
 }
 
 @keyframes loaderSpin {
@@ -493,11 +510,23 @@ nav {
     transform: translateX(0);
 }
 
+.skill-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
 .skill-name {
     font-size: 0.85rem;
     color: var(--text);
-    margin-bottom: 6px;
-    display: block;
+}
+
+.skill-pct {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
 }
 
 .skill-bar {
