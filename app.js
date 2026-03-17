@@ -589,17 +589,18 @@
     soundBtn.classList.add('muted');
 
     // ==========================================
-    // PARALLAX DEPTH LAYERS
+    // PARALLAX DEPTH LAYERS (subtle mouse-only, no scroll shift)
     // ==========================================
     var parallaxLayers = document.querySelectorAll('.parallax-layer');
 
-    window.addEventListener('scroll', function() {
-        var scrollY = window.scrollY;
+    function updateParallax() {
         parallaxLayers.forEach(function(layer) {
             var speed = parseFloat(layer.dataset.speed) || 0.03;
-            var yOffset = scrollY * speed * -50;
-            var xOffset = mouse.nx * speed * 30;
+            var xOffset = mouse.nx * speed * 40;
+            var yOffset = mouse.ny * speed * 40;
             layer.style.transform = 'translate(' + xOffset + 'px, ' + yOffset + 'px)';
         });
-    });
+        requestAnimationFrame(updateParallax);
+    }
+    updateParallax();
 })();
