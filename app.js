@@ -175,6 +175,10 @@
     var icosahedron = new THREE.Mesh(icoGeo, icoMat);
     heroScene.add(icosahedron);
 
+    // Store original vertex positions for scroll-driven explosion
+    var icoOrigPositions = new Float32Array(icoGeo.attributes.position.array);
+    var scrollExplode = 0; // 0 = normal, 1 = fully exploded
+
     // Inner icosahedron (smaller, different rotation)
     var innerGeo = new THREE.IcosahedronGeometry(1.0, 0);
     var innerMat = new THREE.MeshBasicMaterial({
@@ -335,6 +339,28 @@
         requestAnimationFrame(animate);
         var t = clock.getElapsedTime();
 
+        // Scroll-driven icosahedron explosion
+        var heroSection = document.getElementById('hero');
+        var heroRect = heroSection.getBoundingClientRect();
+        var heroProgress = Math.max(0, Math.min(1, -heroRect.top / (heroRect.height * 0.6)));
+        scrollExplode += (heroProgress - scrollExplode) * 0.05;
+
+        var posAttr = icoGeo.attributes.position;
+        for (var vi = 0; vi < posAttr.count; vi++) {
+            var ox = icoOrigPositions[vi * 3];
+            var oy = icoOrigPositions[vi * 3 + 1];
+            var oz = icoOrigPositions[vi * 3 + 2];
+            var explodeScale = 1 + scrollExplode * 2.5;
+            posAttr.array[vi * 3] = ox * explodeScale;
+            posAttr.array[vi * 3 + 1] = oy * explodeScale;
+            posAttr.array[vi * 3 + 2] = oz * explodeScale;
+        }
+        posAttr.needsUpdate = true;
+
+        // Fade icosahedron as it explodes
+        icoMat.opacity = 0.25 * (1 - scrollExplode * 0.7);
+        innerMat.opacity = 0.15 * (1 - scrollExplode * 0.8);
+
         // Hero scene
         icosahedron.rotation.x = t * 0.15 + mouse.ny * 0.3;
         icosahedron.rotation.y = t * 0.2 + mouse.nx * 0.3;
@@ -493,6 +519,87 @@
         });
         card.addEventListener('mouseleave', function() {
             card.style.transform = '';
+        });
+    });
+
+    // ==========================================
+    // DARK / LIGHT THEME TOGGLE
+    // ==========================================
+    var themeBtn = document.getElementById('themeToggle');
+    var themeIcon = document.getElementById('themeIcon');
+    var isDark = localStorage.getItem('resume-theme') !== 'light';
+
+    function applyTheme() {
+        document.body.classList.toggle('light', !isDark);
+        themeIcon.innerHTML = isDark
+            ? '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>'
+            : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+    }
+    applyTheme();
+
+    themeBtn.addEventListener('click', function() {
+        isDark = !isDark;
+        localStorage.setItem('resume-theme', isDark ? 'dark' : 'light');
+        applyTheme();
+    });
+
+    // ==========================================
+    // AMBIENT SOUND TOGGLE (Web Audio)
+    // ==========================================
+    var soundBtn = document.getElementById('soundToggle');
+    var audioCtx = null;
+    var ambientGain = null;
+    var soundOn = false;
+    var oscillators = [];
+
+    function createAmbient() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        ambientGain = audioCtx.createGain();
+        ambientGain.gain.value = 0;
+        ambientGain.connect(audioCtx.destination);
+
+        // Layered soft drones
+        var freqs = [55, 82.5, 110, 165];
+        freqs.forEach(function(f) {
+            var osc = audioCtx.createOscillator();
+            var oscGain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            oscGain.gain.value = 0.03;
+            osc.connect(oscGain);
+            oscGain.connect(ambientGain);
+            osc.start();
+            oscillators.push(osc);
+        });
+    }
+
+    function toggleSound() {
+        soundOn = !soundOn;
+        soundBtn.classList.toggle('muted', !soundOn);
+        if (soundOn) {
+            createAmbient();
+            ambientGain.gain.linearRampToValueAtTime(0.6, audioCtx.currentTime + 1);
+        } else if (ambientGain) {
+            ambientGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+        }
+    }
+
+    soundBtn.addEventListener('click', toggleSound);
+    soundBtn.classList.add('muted');
+
+    // ==========================================
+    // PARALLAX DEPTH LAYERS
+    // ==========================================
+    var parallaxLayers = document.querySelectorAll('.parallax-layer');
+
+    window.addEventListener('scroll', function() {
+        var scrollY = window.scrollY;
+        parallaxLayers.forEach(function(layer) {
+            var speed = parseFloat(layer.dataset.speed) || 0.03;
+            var yOffset = scrollY * speed * -50;
+            var xOffset = mouse.nx * speed * 30;
+            layer.style.transform = 'translate(' + xOffset + 'px, ' + yOffset + 'px)';
         });
     });
 })();
